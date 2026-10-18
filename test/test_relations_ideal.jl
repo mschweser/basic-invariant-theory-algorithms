@@ -1,0 +1,188 @@
+include("../src/relations_ideal.jl")
+
+# test function for programme 3, ideal of relations IF
+
+# input: f_1, ..., f_m in k[x_1, ..., x_n] and ring R = k[x_1, ..., x_n]
+# so that R^G = k[f_1, ..., f_m]
+# input type (F::AbstractVector, R::Union{PolyRing, MPolyRing)
+# output: ideal of relations IF so that R^G is isomorphic to k[y_1, ..., y_m] / IF 
+# second output is GG_y groebner basis of IF
+
+# edge case: univariate case, all f_i are in k, empty F
+# invalid case: k is not a field, not all f_i in same ring R
+
+
+# [(F::AbstractVector, R::Union{PolyRing, MPolyRing)]
+test_list = [
+    # multivariate with relations, C2
+    let 
+        R, (x, y) = polynomial_ring(QQ, [:x, :y])
+        F = [x^2, y^2, x*y]
+        (F, R)
+    end,
+    # multivariate with no relations, B3
+    let
+        R, (x, y, z) = polynomial_ring(QQ, [:x, :y, :z])
+        F = [
+            x^2 + y^2 + z^2,
+            x^4 + y^4 + z^4,
+            x^6 + y^6 + z^6
+        ]
+        (F, R)
+    end,
+    # univariate
+    let
+        R, x = polynomial_ring(QQ, :x)
+        F = [x^2]
+        (F, R)
+    end,
+    # redundant univariate case
+    let
+        R, x = polynomial_ring(QQ, :x)
+        F = [x^2, x^4]
+        (F, R)
+    end,   
+    # redundant multivariate case
+    let
+        R, (x, y, z) = polynomial_ring(QQ, [:x, :y, :z])
+        F = [
+            x^2, y^2, x^2 * y^2, QQ(3)
+        ]
+        (F, R)
+    end,   
+    # empty F
+    let
+        R, (x, y) = polynomial_ring(QQ, [:x, :y])
+        F = elem_type(R)[]
+        (F, R)
+    end,
+    # F with field elements
+    let
+        R, (x, y) = polynomial_ring(QQ, [:x, :y])
+        F = [3, 5]
+        (F, R)
+    end,
+    # invalid cases
+    # not all f_i in same ring
+    let
+        R, (x, y) = polynomial_ring(QQ, [:x, :y])
+        S, (v, w) = polynomial_ring(QQ, [:v, :w])
+        F = [
+            x^2 + y^2,
+            v^2 + w^2
+        ]
+        (F, R)
+    end,
+    # k not a field (fails convention)
+    let
+        R, (x, y) = polynomial_ring(ZZ, [:x, :y])
+        F = [x^2, y^3]
+        (F, R)
+    end,
+    # non coercible elements in F
+    let
+        R, (x, y) = polynomial_ring(QQ, [:x, :y])
+        F = [x^2, sqrt(2)]
+        (F, R)
+    end
+]
+
+# verify result using Oscar function is_algebraically_independent_with_relations
+# and is_groebner_basis
+# check: 1. I_F is correct relation ideal, 2. GG_y generates I_F and 3. GG_y is a groebner basis of I_F
+function verify_relations_ideal(
+    F::AbstractVector, 
+    R::Union{PolyRing, MPolyRing},
+    I_F, 
+    GG_y
+)
+
+    K = base_ring(R)
+
+    # Oscar function only accepts multivariate polynomial elements
+    # map all univariate or constant polynomails into multivariate ring
+    if R isa PolyRing # if R is a univariate polynomial ring
+        # convert univariate ring to multivariate ring with one variable
+        R_Oscar, (X,) = polynomial_ring(K, [:X]) # "multivariate" ring for Oscar function
+        to_multivariate = hom(R, R_Oscar, X) # homomorphism R -> R_Oscar
+        F_Oscar = elem_type(R_Oscar)[] # "mutlivariate" generator list for Oscar function
+        for fi in F # go through all generators
+            if fi isa PolyRingElem # if f_i is a univariate polynomial
+                push!(F_Oscar, to_multivariate(fi)) # embedding via homomorphism and append to list
+            else # f_i is a constant
+                push!(F_Oscar, R_Oscar(K(fi))) # embedding and append to list
+            end
+        end
+    else
+        # if R is multivariate, constants have to be embedded 
+        F_Oscar = elem_type(R)[] # generator list expects elements of R
+        for fi in F # go through all generators
+            if fi isa MPolyRingElem # if f_i is already a multivariate polynomial
+                push!(F_Oscar, fi) # append to list
+            else # f_i is a constant
+                push!(F_Oscar, R(K(fi))) # embedd constant into R and append to list
+            end
+        end
+    end
+
+    # use is_algebraically_independent_with_relations(V::Vector{T}))
+    # output is true/false, I = ideal_of_relations
+    # with I in k[t_1, ..., t_m]
+    _, I_Oscar = is_algebraically_independent_with_relations(F_Oscar)
+    # map I_Oscar from T_Oscar = k[t_1, ..., t_m] to T = k[y_1, ..., y_m] 
+    # to compare it with I_F
+    T_Oscar = base_ring(I_Oscar)
+    T = base_ring(I_F)
+    rename_variables = hom(T_Oscar, T, gens(T)) # t_i |-> y_i
+    # ideal in T to compare with I_F
+    I_Oscar_in_T = ideal(T, [rename_variables(g) for g in gens(I_Oscar)])
+    # check if I_Oscar_in_T is isomorphic to I_F
+    correct_ideal = I_F == I_Oscar_in_T
+
+    # verify that GG_y is a groebner basis of I_F via Oscar function is_groebner_basis
+    # is_groebner_basis(F::IdealGens; ordering::MonomialOrdering=default_ordering(base_ring(F))) 
+    # needs list of ideal generators as input
+    GG_y_ideal = ideal(T, GG_y) # construct ideal that is generated by GG_y
+    generates_I_F = I_F == GG_y_ideal # check if ideal generated by GG_y is isomorphic to I_F
+    is_Groebner_basis = is_groebner_basis(GG_y_ideal.gens; ordering = lex(T)) # check if GG_y is a groebner basis
+
+    # all three checks must be true
+    return correct_ideal && generates_I_F && is_Groebner_basis
+end
+
+function test(test_list)
+    expected_errors = Dict(
+        8 => "All polynomial generators must belong to R.",
+        9 => "The coefficient ring must be a field.",
+        10 => "Every constant generator must be coercible into the coefficient field."
+    )
+
+    for (i, (F, R)) in enumerate(test_list)
+        # catch expected errors
+        if haskey(expected_errors, i)
+            rejected = false
+            try
+                relations_ideal(F, R)
+            catch err
+                sprint(showerror, err) == expected_errors[i] || rethrow()
+                rejected = true
+                println("Test $i: expected error (", sprint(showerror, err), ")")
+            end
+            rejected || error("Test $i failed: invalid input was accepted.")
+            continue
+        end
+  
+        # compute ideal of relations with programm 3
+        I_F, GG_y = relations_ideal(F, R)
+        
+        if isempty(F) # if k[F] = k, Oscar function doesnt accept empty generator list
+            correct = iszero(I_F) && isempty(GG_y)
+        else # verify using Oscar function
+            correct = verify_relations_ideal(F, R, I_F, GG_y)
+        end        
+        correct || error("Test $i failed.")
+        println("Test $i: passed")
+    end
+end
+
+test(test_list)
