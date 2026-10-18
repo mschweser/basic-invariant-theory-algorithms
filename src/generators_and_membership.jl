@@ -1,4 +1,4 @@
-# connect programm 1 and 2
+# connect programm generators and f_in_IR
 include("generators.jl")
 include("f_in_IR.jl")
 
@@ -19,12 +19,12 @@ function compute_invariant_representation(
     debug::Bool=true)
     # check if f is in R
     parent(f) === R || error("The polynomial f must belong to R.")
-    # programm 1 needs graded rings and f must belong to graded R
+    # programm "generators" needs graded rings and f must belong to graded R
     if !(R isa MPolyDecRing)
         R, _ = grade(R)
         f = R(f)
     end
-    F = compute_generators(R, G; debug=debug) # programm 1
-    belongs, h = membership_representation(F, f) # programm 2
+    F = compute_generators(R, G; debug=debug) # programm "generators"
+    belongs, h = membership_representation(F, f) # programm "f in IR"
     return belongs, h, F
 end
