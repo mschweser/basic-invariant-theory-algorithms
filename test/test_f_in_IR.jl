@@ -4,8 +4,8 @@ include("../src/f_in_IR.jl")
 
 # input F = [f_1, ..., f_m] generators of invariant ring R^G = k[f_1, ..., f_m]
 # and polynomial f in R = k[x_1, ..., x_n]
-# output is "true" if f is in R^G and "false" if not
-# and if f is in R^G second output is g in k[y_1, ..., y_m] with f = g(f_1, ..., f_m)
+# output is (belongs, g) where `belongs` is "true" if f is in R^G and "false" if not
+# and if f is in R^G then g is polynomial in k[y_1, ..., y_m] with f = g(f_1, ..., f_m)
 
 # edge case: univariate polynomial; empty list of generators; constant polynomial; 
 # invalid case: f not in R; not all f_1, ..., f_m in same ring
@@ -193,13 +193,13 @@ function test(test_list)
             continue
         end
 
-        # membership_representation should run and give a result
+        # `membership_representation` should run and give a result
         belongs, h = membership_representation(F, f)
         belongs == expected_membership[i] || error("Test $i failed: membership test wrong.")
 
         if belongs
             if h isa Union{PolyRingElem, MPolyRingElem}
-                represented_f = evaluate(h, F) # represented_f = h(f_1, ..., f_m)
+                represented_f = evaluate(h, F) # `represented_f` = h(f_1, ..., f_m)
             else
                 represented_f = h # for constant h
             end            

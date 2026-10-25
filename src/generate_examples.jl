@@ -1,4 +1,6 @@
 # simplify polynomials, usefull for generators
+# divides coefficients through greatest common divisor 
+# and returns primitive polynomial with positive leading coefficient
 function simplify_polynomial(f)
     iszero(f) && return f # cant divide through 0
     g = divexact(f, content(f)) # content gives back (rational) gcd

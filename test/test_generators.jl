@@ -2,13 +2,14 @@ include("../src/generators.jl")
 
 # test function for programm 1 generators
 
-# input R = k[x_1, ..., x_n], G <= Gl(n,k), debug boolian
+# input R = k[x_1, ..., x_n], G <= Gl(n,k), `debug` boolian
 # check if |G| < infty, char(k) = 0, degree(G) = number of variables of R
 # and G and R must be over the same field k
 # output f_1, ..., f_m with R^G = k[f_1, ..., f_m]
 
 # edge cases: univariate polynomials; one generator
-# invalid cases: char(K) != 0, |G| = infty, degree(G)!= number of variables of R, G and R not over the same field
+# invalid cases: char(K) != 0; |G| = infty; degree(G)!= number of variables of R;
+# G and R not over the same field
 
 # [(ring, group)]
 test_list = [
@@ -95,15 +96,15 @@ test_list = [
 ]
 
 # test if k[f_1, ..., f_m] == R^G 
-# for computed generators f_1, ..., f_m
+# for computed `generators` [f_1, ..., f_m]
 function verify_generators(R::MPolyRing, G::MatGroup, generators)
-    # Oscar function invariant_ring needs graded ring as input
+    # Oscar function `invariant_ring` needs graded ring as input
     if !(R isa MPolyDecRing)
         R, _ = grade(R)
         generators = elem_type(R)[R(f) for f in generators]
     end
     IR = invariant_ring(R, G)
-    oscar_generators = fundamental_invariants(IR) # oscar function for generators of IR
+    oscar_generators = fundamental_invariants(IR) # Oscar function for generators of IR
 
     # test if k[f_1, ..., f_m] subseteq R^G
     # by testing for invariancy
@@ -115,7 +116,7 @@ function verify_generators(R::MPolyRing, G::MatGroup, generators)
     end
 
     # test if R^G subseteq k[f_1, ..., f_m]
-    # by testing for subalgebra membership with oscar function
+    # by testing for subalgebra membership with Oscar function
     if isempty(generators)
         return all(f -> total_degree(f) == 0, oscar_generators) # test for constant generators
     end
@@ -123,7 +124,7 @@ function verify_generators(R::MPolyRing, G::MatGroup, generators)
     for f in oscar_generators
         belongs, _ = subalgebra_membership(
             forget_grading(f), [forget_grading(g) for g in generators]
-        ) # true for oscar_generator \in k[f_1, ..., f_m]
+        ) # true for `oscar_generator` \in k[f_1, ..., f_m]
         if belongs == false
             println("R^G is not a subset of k[f_1, ..., f_m].")
             return false
@@ -132,7 +133,7 @@ function verify_generators(R::MPolyRing, G::MatGroup, generators)
     return true
 end
 
-# compute generators for test list and verify them
+# compute `generators` for test list and verify them
 function test(test_list)
     expected_errors = Dict(
         5 => "The coefficient field must have characteristic zero.",
@@ -143,7 +144,7 @@ function test(test_list)
         11 => "The coefficient ring must be a field." # to satisfy convention
     )
     for (i, (R, G)) in enumerate(test_list)
-        if haskey(expected_errors, i) # these inputs must be rejected by compute_generators
+        if haskey(expected_errors, i) # these inputs must be rejected by `compute_generators`
             rejected = false
             try
                 compute_generators(R, G; debug = false)

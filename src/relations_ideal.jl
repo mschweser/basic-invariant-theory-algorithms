@@ -1,17 +1,17 @@
 using Oscar
 
-# use theorem 5.1.4(?)
+# input: f_1, ..., f_m in k[x_1, ..., x_n] and ring R = k[x_1, ..., x_n]
+# so that R^G = k[f_1, ..., f_m]
+# output: (I_F, GG_y) where I_F is ideal of relations 
+# so that R^G is isomorphic to k[y_1, ..., y_m] / I_F 
+# and GG_y is groebner basis of I_F
+
+# use theorem 4.1.4
 # algorithm:
 # 1. compute groebner basis GG of JF = < f_1 - y_1, ..., f_m - y_m>
 # 2. take all polynomials in GG_y := GG \cap k[y_1, ..., y_m]
-# 3. the relation ideal IF = < GG_y> and GG_y is a groebner basis of IF
+# 3. the relation ideal I_F = < GG_y> and GG_y is a groebner basis of I_F
 
-# input: f_1, ..., f_m in k[x_1, ..., x_n] and ring R = k[x_1, ..., x_n]
-# so that R^G = k[f_1, ..., f_m]
-# output: ideal of relations IF so that R^G is isomorphic to k[y_1, ..., y_m] / IF 
-# second output is GG_y groebner basis of IF
-# input type: (F::AbstractVector, R::Union{PolyRing, MPolyRing)
-# output type: Tuple{MPolyIdeal, Vector{<:MPolyRingElem}}
 function relations_ideal(F::AbstractVector, R::Union{PolyRing, MPolyRing})
     K = base_ring(R) # R = k[x_1, ..., x_n] with field k
     K isa Field || error("The coefficient ring must be a field.") # convention
@@ -36,11 +36,12 @@ function relations_ideal(F::AbstractVector, R::Union{PolyRing, MPolyRing})
         end
     end
 
-    # construct ideal J_F = <f_1 - y_1, ..., f_m - y_m> in ring S = k[x_1, ..., x_n, y_1, ..., y_m]
+    # construct ideal J_F = <f_1 - y_1, ..., f_m - y_m> in ring 
+    # S = k[x_1, ..., x_n, y_1, ..., y_m]
     n = ngens(R) # number of generators of R, Oscar function
     m = length(F) # number of generators of R^G in set F
     names = vcat([Symbol("x_$i") for i in 1:n], [Symbol("y_$i") for i in 1:m])
-    S, z = polynomial_ring(K, names; internal_ordering = :lex) # S = k[x_1, ..., x_n, y_1, ..., y_m]
+    S, z = polynomial_ring(K, names; internal_ordering = :lex)
     x = z[1:n] # x_1, ..., x_n in S
     y = z[n+1:n+m] # y_1, ..., y_m in S
     if R isa PolyRing # R is univariate, homomorphism method takes image of one generator
