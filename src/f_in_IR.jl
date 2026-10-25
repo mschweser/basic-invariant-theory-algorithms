@@ -1,19 +1,14 @@
-# input: f_1, ..., f_m generators of invariant ring R^G
-# and polynomial f in R
-# output: true if f in k[f_1, ..., f_m] = R^G 
-# and if f in R^G then second output is g in k[y_1, ..., y_m]
-# with f = g(f_1, ..., f_m)
+# input F = [f_1, ..., f_m] generators of invariant ring R^G = k[f_1, ..., f_m]
+# and polynomial f in R = k[x_1, ..., x_n]
+# output is (belongs, g) with `belongs` is "true" if f is in R^G and "false" if not
+# and if f is in R^G then g is polynomial in k[y_1, ..., y_m] with f = g(f_1, ..., f_m)
 
-# example 1: reflexion group of the cube
-# example 2: c2, show, that presentation is not unique
-
-# use Lemma 4.2.10(?):
+# use Lemma 3.2.13:
 # < is monomial order where all polynomials involving x_1, ..., x_n are 
 # greater than y_1, ..., y_m in k[x_1, ..., x_n, y_1, ..., y_m]
 # GG is Groebnerbasis of <f_1 - y_1, ..., f_m - y_m> 
 # f in k[f_1, ..., f_m] <=> g in k[y_1, ..., y_m] with g = f^GG
 # if f in k[f_1, ..., f_m] then f = g(f_1, ..., f_m)
-
 
 # algorithm
 # 1. compute Groebnerbasis GG for the ideal <f_1 - y_1, ..., f_m - y_m>
@@ -24,27 +19,17 @@
 
 using Oscar
 
-# input F = [f_1, ..., f_m] generators of invariant ring R^G = k[f_1, ..., f_m]
-# and polynomial f in R = k[x_1, ..., x_n]
-# output is "true" if f is in R^G and "false" if not
-# and if f is in R^G second output is g in k[y_1, ..., y_m] with f = g(f_1, ..., f_m)
-
 # function for f in k
 # check if all generators are elements of k (true if list is empty)
-# input types: F::AbstractVector, f::RingElem, where parent(f)::Field
-# output type: Tuple{Bool, typeof(f)}; for valid input the Boolean is true
 function membership_representation(F::AbstractVector, f::RingElem)
-    parent(f) isa Field || error("The input f must be a field or polynomial ring element over a field.")
+    parent(f) isa Field || 
+        error("The input f must be a field or polynomial ring element over a field.")
     all(fi -> fi isa RingElem && parent(fi) === parent(f), F) ||
         error("All generators and f must belong to the same field.")
     return true, f
 end
 
 # function for polynomial f
-# input types: F::AbstractVector,
-#              f::Union{PolyRingElem, MPolyRingElem}
-# output type: Tuple whose first entry is Bool; the second entry is a polynomial
-#              representation (or a coefficient for constant f), or Nothing
 function membership_representation(F::AbstractVector, f::Union{PolyRingElem, MPolyRingElem})
 
     R = parent(f)
@@ -70,7 +55,8 @@ function membership_representation(F::AbstractVector, f::Union{PolyRingElem, MPo
     n = ngens(R)
     m = length(F)
     names = vcat([Symbol("x_$i") for i in 1:n], [Symbol("y_$i") for i in 1:m])
-    S, z = polynomial_ring(K, names; internal_ordering = :lex) # S = k[x_1, ..., x_n, y_1, ..., y_m]
+    # S = k[x_1, ..., x_n, y_1, ..., y_m]
+    S, z = polynomial_ring(K, names; internal_ordering = :lex) 
     x = z[1:n] # x_1, ..., x_n in S
     y = z[n+1:n+m] # y_1, ..., y_m in S
     if f isa PolyRingElem # f is univariate, method takes image of one generator
@@ -93,21 +79,16 @@ function membership_representation(F::AbstractVector, f::Union{PolyRingElem, MPo
             return false, nothing # g is not in k[y_1, ..., y_m], f is not in k[f_1, ..., f_m]
         end
     end
-    # now g only depends on y_1, ..., y_m 
+    # now g lies in k[y_1, ..., y_m]
     
     # construct T = k[y_1, ..., y_m] and map g into it, g |-> h
     # then f = h(f_1, ..., f_m)
     T, Y = polynomial_ring(K, [Symbol("y_$i") for i in 1:m])
-    h = zero(T) # construct h as the zero polynomial
-    # build polynomial h in T by going through the terms with coefficients c and exponents alpha in g
-    for (c, alpha) in zip(coefficients(g), AbstractAlgebra.exponent_vectors(g))
-        term = T(c) # coefficient as constant polynomial in T
-        # go through all y_1, ..., y_m and build terms of h by multiplication
-        for i in 1:m
-            term *= Y[i]^alpha[n+i] # exponents of g are tupels (x_1, ..., x_n, y_1, ..., y_m)
-        end
-        h += term # build polyonomial h by adding up all terms
-    end
-    # now g |-> h is in k[y_1, ..., y_m] and f is h(f_1, ..., f_m)
+    # define homomorphims 
+    # psi : S = k[x_1, ..., x_n, y_1, ..., y_m] -> T = k[Y_1, ..., Y_m]
+    # x_i |-> 0, y_i |-> Y_i
+    psi = hom(S, T, vcat(fill(zero(T), n), Y))
+    h = psi(g)
+    # now g |-> h lies in k[y_1, ..., y_m] and f is h(f_1, ..., f_m)
     return true, h
 end
